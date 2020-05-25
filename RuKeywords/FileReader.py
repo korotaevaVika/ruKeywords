@@ -14,10 +14,12 @@ import rulemma
 
 import pymorphy2
 
+from django.utils.encoding import smart_text
+from summa import keywords as textrank
 
 class Reader:
 
-	def __init__(self, fileName, generateWordList=False): 	
+	def __init__(self, fileName, generateWordList=False, additional_stopwords=None): 	
 		self.fileName = fileName
 		self.doc = None
 		self.pageObjects = []
@@ -25,6 +27,7 @@ class Reader:
 		self.words = []
 		self.lines = []
 		self.articles = []
+		self.additional_stopwords = additional_stopwords
 
 		self.generateWordList = generateWordList
 		#self.lemmatizer = rulemma.Lemmatizer()
@@ -120,16 +123,18 @@ class Reader:
 		title = ''
 		isKeywordsSpan = False
 		keywords = ''
+		normalized_keywords = None
 
 		#tag_dict = {"J": wordnet.ADJ,
 		#			"N": wordnet.NOUN,
 		#			"V": wordnet.VERB,
 		#			"R": wordnet.ADV}
+		block_count = 0
 
 		while (pageNum < pageEnd):
 			page = self.doc.loadPage(pageNum)
 			dictionary = page.getText("dict")
-			block_count = 0
+			#block_count = 0
 			goToNextPage = False
 			
 			for x in dictionary['blocks'][:]:
@@ -145,42 +150,50 @@ class Reader:
 					#TO DO To-do
 					sentence_count = 0
 					dot_found = False
-					word_count_insentence = 0
+					word_pos_in_sentence = 0
 
 					if ((len(x['lines']) == 1) and (len(x['lines'][0]['spans']) == 1) and (x['lines'][0]['spans'][0]['text'].isdigit())):
 						continue #do not write page number
 
-					else:            
+					else:
 						for line in x['lines']:
 							span_count = 0
 							processSpans = True
 
 							if (block_count == 0 and line_count == 0 and 'Bold' in line['spans'][0]['font']):
+
 								isNewArticle = True
 								processSpans = False
 								authorsBlock = True
-								author = unicodedata.normalize('NFKC', line['spans'][0]['text'])
+								author = smart_text(line['spans'][0]['text'])
 								university = ''
 								mail = ''
 								title = ''
 								keywords = ''
 								isKeywordsSpan = False
+								normalized_keywords = None
+
+								self.UpdateTextrankScore(articleCount - 1 )
+
 							elif (block_count == 0 and authorsBlock == True and 'Bold' in line['spans'][0]['font']):
-								author += unicodedata.normalize('NFKC', line['spans'][0]['text'])
+
+								author += smart_text(line['spans'][0]['text'])
 								processSpans = False
 								
 							if (processSpans == True):
-								for span in line['spans']:                        
+
+								for span in line['spans']:
+
 									if (isNewArticle == True and 'Italic' in span['font'] and int(span['size']) == 10 and mail == ''):
-										university += unicodedata.normalize('NFKC', span['text'])
+										university += smart_text(span['text'])
 
 									elif (isNewArticle == True and 'DJGIDG+SchoolBookC' in span['font'] and int(span['size']) == 8):
-										mail += unicodedata.normalize('NFKC', span['text'])
+										mail += smart_text(span['text'])
 
 									elif (isNewArticle == True and 'Bold' in span['font']):
-										title += unicodedata.normalize('NFKC', span['text']).replace('\uf6ba', ' ') #+
+										title += "".join(re.findall("[а-яА-Яa-zA-Z,ёЁ\s-]+", smart_text(span['text'])))#+
 
-									elif (isNewArticle == True and 'Italic' in span['font'] and int(span['size']) == 8 and 'Ключевые слова' in unicodedata.normalize('NFKC', span['text']) and not title == '' and keywords == ''):
+									elif (isNewArticle == True and 'Italic' in span['font'] and int(span['size']) == 8 and 'Ключевые слова' in smart_text(span['text']) and not title == '' and keywords == ''):
 										isKeywordsSpan = True
 
 									elif (isNewArticle == True and isKeywordsSpan == True):
@@ -189,15 +202,15 @@ class Reader:
 										#remove переносы по слогам
 										if (len(keywords) > 0 and keywords[-1] == '-'):
 											keywords = keywords[:-1]
-										elif (keywords == '' and unicodedata.normalize('NFKC', span['text'])[0] == ':'):
+										elif (keywords == '' and smart_text(span['text'])[0] == ':'):
 											removeDotsWhenKeywordsStart = True
 
-										keywords+= unicodedata.normalize('NFKC', span['text'])
+										keywords+= smart_text(span['text'])
 
 										if (removeDotsWhenKeywordsStart == True):
 											keywords = keywords[1:]
 
-										if (len(unicodedata.normalize('NFKC', span['text']).strip()) > 0 and unicodedata.normalize('NFKC', span['text']).strip()[-1] == '.'):
+										if (len(smart_text(span['text']).strip()) > 0 and smart_text(span['text']).strip()[-1] == '.'):
 											articleCount += 1
 											isNewArticle = False
 											keywords = keywords[:-1].strip() #remove last dot and all useless spaces
@@ -205,6 +218,8 @@ class Reader:
 											university = university.strip()
 											mail = mail.strip()
 											title = title.strip()
+											normalized_keywords = [self.morph.parse(w)[0].normal_form.strip().split() for w in keywords.split(',')]
+
 											self.articles.append([articleCount, author, university, mail, title, keywords])
 											author = ''
 											university = ''
@@ -212,16 +227,14 @@ class Reader:
 											title = ''
 											keywords = ''
 											isKeywordsSpan = False
-
-
-									elif (isNewArticle == False and (includeRemarks == False and int(span['size']) > 8) #not example remarks
-										  ):   
+											
+									elif (isNewArticle == False and (includeRemarks == False and int(span['size']) > 8)):   #not example remarks
 
 										lineText = ''
-
 										prevWord = None
 										# удаление переноса по слогам в предыдущей строке
-										if (span_count == 0 and len(self.lines) > 0 and self.lines[-1]['text'][-1] == '-' and unicodedata.normalize('NFKC', span['text'])[0].islower() == True):
+										if (span_count == 0 and len(self.lines) > 0 and self.lines[-1]['text'][-1] == '-' and smart_text(span['text'])[0].islower() == True):
+											
 											prevWord = self.words.pop()
 											n = len(prevWord['text']) + 1 # +1 на дефис
 											self.lines[-1]['text'] = self.lines[-1]['text'][:-n]
@@ -229,28 +242,21 @@ class Reader:
 
 											if (prevWord != None and len(prevWord['text'][0]) > 0 and not(prevWord['text'][0] == ' ' or prevWord['text'][0] == '')):
 												lineText += ' '
+											
 											lineText += prevWord['text'] 
 
-										if (('НАПРАВЛЕНИE' in unicodedata.normalize('NFKC', span['text']).upper()) or span['size'] == 13):
+										if (('НАПРАВЛЕНИE' in smart_text(span['text']).upper()) or span['size'] == 13):
 											#switch to the next page
 											goToNextPage = True
 											break
 
-										lineText += unicodedata.normalize('NFKC', span['text'])
-										#swapLineText = ''.join(
-										#    re.findall(u"[\u0400-\u0500\(\)\s.,?!:;-]+", lineText))
-                                    
-										#if (not swapLineText == lineText):
-										#    print('linetext = "{0}", swap = "{1}"'.format(lineText,
-										#    swapLineText))
-										#    lineText = str(swapLineText)
-                                    
-                                    
+										lineText += smart_text(span['text'])
+										
 										self.lines.append({'size':span['size'], 
 														  'flags': span['flags'],
 														  'font': span['font'],
 														  'color': span['color'],
-														  'text': lineText, #unicodedata.normalize('NFKC', span['text']),
+														  'text': lineText,
 														  'span_count': span_count,
 														  'line_count': line_count,
 														  'block_count': block_count,
@@ -258,18 +264,22 @@ class Reader:
 														  'article_num': articleCount
 													 })
 
-										word_count_inline = 0
+										
 										for txt in lineText.split(' '):
+											
 											#запишем слово вместе с его слогами с предыдущей строки
-											if not prevWord is None and not (unicodedata.normalize('NFKC', txt) in [" ", ""]):
-												word = prevWord['text'] + unicodedata.normalize('NFKC', txt)
+											if not prevWord is None and not (txt in [" ", ""]):
+												word = prevWord['text'] + txt
+												otherSigns = prevWord['otherSigns']
 												prevWord = None
 											else:
-												word = unicodedata.normalize('NFKC', txt)
+												word = txt
+												otherSigns = ""
 
-											otherSigns = "".join(re.findall("[^а-яА-Яa-zA-Z,-]", word))
+											otherSigns += "".join(re.findall("[^а-яА-Яa-zA-Z,ёЁ-]", word))
+											
 											if (not otherSigns == ""): #(regex.match(word)):
-												word = "".join(re.findall("[а-яА-Яa-zA-Z,-]+", word))
+												word = "".join(re.findall("[а-яА-Яa-zA-Z,ёЁ-]+", word))
 											
 											if (self.generateWordList == True and word == "" and '.' in otherSigns):
 												self.words[-1]['otherSigns'] = otherSigns
@@ -283,26 +293,33 @@ class Reader:
 												self.words.append({'text': word})
 												continue
 
-											word_count_inline = word_count_inline + 1
-
 											x = self.morph.parse(word)[0]
-
-											if dot_found == False and '.' in otherSigns and not '..' in otherSigns:
+											
+											if (dot_found == False and '.' in otherSigns and not '..' in otherSigns):
 												dot_found = True
+
 											else:
-												if (dot_found and len(word) > 0 and word[0].isupper()
-													and (self.words[-1] is not None and self.words[-1]['isupper'] == False)):
+												if (dot_found and len(word) > 0 and word[0].isupper() and (self.words[-1] is not None and self.words[-1]['isupper'] == False)):
+													
 													dot_found = False
-													print('sentence_count ', sentence_count)
-													print('block_count ', block_count)
-													print('line_count ', line_count)
-													print('page_num ', pageNum)
-													print(' '.join([x['text'] for x in self.words if x['article_num'] == articleCount and x['sentence_count'] == sentence_count and x['line_count'] == line_count and x['page_num'] == pageNum and x['block_count'] == block_count]))
-													sentence_count = sentence_count + 1
-												
+													word_pos_in_sentence = 0
+													words_in_sentence = self.words[-1]['word_pos_in_sentence']
+													
+													if (sentence_count > 1):
+														for i, w in enumerate(self.words):
+
+															if (w['article_num'] == articleCount and w['block_count'] == block_count and w['sentence_count'] == sentence_count):
+																w['word_pos_in_sentence'] /= words_in_sentence
+																											
+													sentence_count += 1
 												elif dot_found and len(word) > 0 and word[0].islower():
 													dot_found = False
 
+											if not normalized_keywords is None and len(normalized_keywords) > 0:
+												is_keyword = max([1 for k in normalized_keywords if x.normal_form in k], default=0) # 1 -> 1 / len(k); max -> sum
+											else:
+												is_keyword = 0
+												
 											self.words.append({'size':span['size'], 
 														  'flags': span['flags'],
 														  'font': span['font'],
@@ -310,7 +327,9 @@ class Reader:
 														  'otherSigns': otherSigns,
 														  'istitle': word[0:2].istitle(),
 														  'isupper': word.isupper(),
+														  'is_keyword': is_keyword,
 														  'text': word, #unicodedata.normalize('NFKC', txt),
+														  'textrank_score': 0,
 
 														  'morph_score' : x.score,
 														  'morph_pos' : x.tag.POS, # Part of Speech, часть речи,
@@ -328,7 +347,7 @@ class Reader:
 														  'morph_isnormal' : x.normal_form == x.word, # слово в неопределенной форме : да / нет
 														  'morph_normalform' : x.normal_form, # неопределенная форма
 														  
-														  'word_count_inline': word_count_inline,
+														  'word_pos_in_sentence': word_pos_in_sentence,
 														  'span_count': span_count,
 														  'line_count': line_count,
 														  'block_count': block_count,
@@ -336,20 +355,25 @@ class Reader:
 														  'page_num': pageNum,
 														  'article_num': articleCount
 													 })
+
+											word_pos_in_sentence += 1
 										span_count += 1
 							line_count += 1
 							
-
 							if goToNextPage == True:
 								break
 
 						if goToNextPage == True:
 							break
-						block_count += 1
 
+						block_count += 1
 						sentence_count = 0
 						dot_found = False
+						word_pos_in_sentence = 0
+
 			pageNum += 1
+
+		self.UpdateTextrankScore(articleCount)
 		print('Найдено {0} статей'.format(len(self.articles)))
 		return self.words, self.lines, self.articles
 
@@ -388,3 +412,19 @@ class Reader:
 									#preprocessor.preprocess_text(text)]], columns=column_names)
 			df = pd.concat([row_df, df], ignore_index=True)
 		return df
+	
+
+	"""
+	Count textrank score for words when article ends
+	"""
+	def UpdateTextrankScore(self, articleID):
+		if self.generateWordList == True:
+			if (len(self.articles) > 0) and len(self.lines) > 0:
+				text = ''.join([x['text'] for x in self.lines if x['article_num'] == articleID])
+				values = textrank.keywords(text, language='russian', additional_stopwords=self.additional_stopwords, scores=True)
+				normalized_values = [self.morph.parse(v[0])[0].normal_form.strip() for v in values]
+
+				for w in self.words:
+					if (w['article_num'] == articleID and w['morph_normalform'] in normalized_values):
+						i = normalized_values.index(w['morph_normalform'])
+						w['textrank_score'] = values[i][1] 

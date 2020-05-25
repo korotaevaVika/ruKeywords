@@ -511,14 +511,28 @@ def ru_words_test():
 
 		txt = ' '.join([x['text'] for x in words if x['article_num'] == 0])
 		words_0 = [x for x in words if x['article_num'] == 0]
-		for j in range(100):
-			print(j, ' block')
-			for i in range(10):
-				print(i, ' sentence')
-				print(' '.join([x['text'] for x in words if x['article_num'] == 0 and x['sentence_count'] == i
-					and x['block_count'] == j]))
-			print('-----')
-		#print("txt")
+
+		#for i, w in enumerate(words_0):
+		#	if (i > 50 and i < 80):
+		#		print(w['text'], ' ', w['sentence_count'], ' ', w['word_pos_in_sentence'])
+		
+
+		#print([x['text'] for x in words_0 if x['is_keyword'] > 0])
+
+		print([x['text'] for x in words_0 if x['textrank_score'] != 0])
+
+		#for i, w in enumerate(words_0):
+		#	if (i > 50 and i < 80):
+		#		print(w['text'], ' ', w['sentence_count'], ' ', w['word_pos_in_sentence'])
+
+		#for j in range(23):
+		#	print(j, ' block')
+		#	for i in range(10):
+		#		print(i, ' sentence')
+		#		print(' '.join([x['text'] for x in words if x['article_num'] == 0 and x['sentence_count'] == i
+		#			and x['block_count'] == j]))
+		#	print('-----')
+		print("--=-")
 		#print(txt)
 		#print("test")
 	else:

@@ -28,7 +28,6 @@ class TextRankExtractor:
 			values = ','.join(random.sample(values, min(num, length)))
 			texts.at[index, 'textrank_keywords'] = values
 
-			
 			if (metricsCount == True):
 				if self.textprocessor.useLemmas == True:
 					groundtruth = self.textprocessor.get_normal_form_text(row['Keywords']).split(',')
