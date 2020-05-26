@@ -27,7 +27,7 @@ class Reader:
 		self.words = []
 		self.lines = []
 		self.articles = []
-		self.additional_stopwords = additional_stopwords
+		self.stopwords = additional_stopwords
 
 		self.generateWordList = generateWordList
 		#self.lemmatizer = rulemma.Lemmatizer()
@@ -103,14 +103,14 @@ class Reader:
 	"""
 	Return words, lines, articles lists
 	"""
-	def parseDocPages(self, pageStart=0, pageEnd=None, includeRemarks=False):
+	def parseDocPages(self, pageStart=1, pageEnd=None, includeRemarks=False):
 		self.words = []
 		self.lines = []
 		self.articles = []
 		#regex = re.compile('[^а-яА-Я]')
 
 		if (pageEnd is None):
-			pageEnd = self.doc.pageCount
+			pageEnd = self.doc.pageCount 
 		elif self.doc.pageCount < pageEnd:
 			pageEnd = self.doc.pageCount
 		pageNum = pageStart
@@ -124,6 +124,7 @@ class Reader:
 		isKeywordsSpan = False
 		keywords = ''
 		normalized_keywords = None
+		wordsCounter = {}
 
 		#tag_dict = {"J": wordnet.ADJ,
 		#			"N": wordnet.NOUN,
@@ -131,8 +132,8 @@ class Reader:
 		#			"R": wordnet.ADV}
 		block_count = 0
 
-		while (pageNum < pageEnd):
-			page = self.doc.loadPage(pageNum)
+		while (pageNum <= pageEnd):
+			page = self.doc.loadPage(pageNum - 1)
 			dictionary = page.getText("dict")
 			#block_count = 0
 			goToNextPage = False
@@ -151,6 +152,7 @@ class Reader:
 					sentence_count = 0
 					dot_found = False
 					word_pos_in_sentence = 0
+					block_changed = True
 
 					if ((len(x['lines']) == 1) and (len(x['lines'][0]['spans']) == 1) and (x['lines'][0]['spans'][0]['text'].isdigit())):
 						continue #do not write page number
@@ -172,8 +174,9 @@ class Reader:
 								keywords = ''
 								isKeywordsSpan = False
 								normalized_keywords = None
+								wordsCounter = {}
 
-								self.UpdateTextrankScore(articleCount - 1 )
+								self.UpdateTextrankScore(articleCount - 1)
 
 							elif (block_count == 0 and authorsBlock == True and 'Bold' in line['spans'][0]['font']):
 
@@ -218,7 +221,8 @@ class Reader:
 											university = university.strip()
 											mail = mail.strip()
 											title = title.strip()
-											normalized_keywords = [self.morph.parse(w)[0].normal_form.strip().split() for w in keywords.split(',')]
+											normalized_keywords = [self.morph.parse(w)[0].normal_form.strip().split() \
+												for w in keywords.split(',')]
 
 											self.articles.append([articleCount, author, university, mail, title, keywords])
 											author = ''
@@ -250,7 +254,7 @@ class Reader:
 											goToNextPage = True
 											break
 
-										lineText += smart_text(span['text'])
+										lineText += smart_text(span['text'].replace(u'\xa0', u' '))
 										
 										self.lines.append({'size':span['size'], 
 														  'flags': span['flags'],
@@ -316,10 +320,30 @@ class Reader:
 													dot_found = False
 
 											if not normalized_keywords is None and len(normalized_keywords) > 0:
-												is_keyword = max([1 for k in normalized_keywords if x.normal_form in k], default=0) # 1 -> 1 / len(k); max -> sum
+												is_keyword = max([1 for k in normalized_keywords \
+													if x.normal_form in k], default=0) # 1 -> 1 / len(k); max -> sum
 											else:
 												is_keyword = 0
+											
+											if not self.stopwords is None and len(self.stopwords) > 0:
+												is_stopword = max([1 for k in self.stopwords \
+													if x.normal_form == k], default=0) # 1 -> 1 / len(k); max -> sum
+											else:
+												is_stopword = 0
+											
 												
+											if block_changed:
+												if len(self.words) > 0 and not '.' in self.words[-1]['otherSigns']:
+													sentence_count = self.words[-1]['sentence_count']
+													block_count -= 1
+												block_changed = False
+											
+											word_normal_form = x.normal_form
+											if x.tag.POS in ['ADJF', 'ADJS', 'PRTF', 'PRTS']:
+												word_normal_form = x.inflect({'sing', 'masc', 'nomn'}).word
+
+											wordsCounter[word_normal_form] = wordsCounter.get(word_normal_form, 0) + 1
+
 											self.words.append({'size':span['size'], 
 														  'flags': span['flags'],
 														  'font': span['font'],
@@ -328,8 +352,10 @@ class Reader:
 														  'istitle': word[0:2].istitle(),
 														  'isupper': word.isupper(),
 														  'is_keyword': is_keyword,
+														  'is_stopword': is_stopword,
 														  'text': word, #unicodedata.normalize('NFKC', txt),
 														  'textrank_score': 0,
+														  'frequency': wordsCounter.get(word_normal_form),
 
 														  'morph_score' : x.score,
 														  'morph_pos' : x.tag.POS, # Part of Speech, часть речи,
@@ -345,7 +371,8 @@ class Reader:
 														  'morph_transitivity' : x.tag.transitivity, # переходность (переходный, непереходный)
 														  'morph_voice' : x.tag.voice, # залог (действительный, страдательный)
 														  'morph_isnormal' : x.normal_form == x.word, # слово в неопределенной форме : да / нет
-														  'morph_normalform' : x.normal_form, # неопределенная форма
+														  'morph_normalform' : word_normal_form, # неопределенная форма
+														  'morph_lexeme' : x.lexeme[0][0], # лексема
 														  
 														  'word_pos_in_sentence': word_pos_in_sentence,
 														  'span_count': span_count,
@@ -374,6 +401,7 @@ class Reader:
 			pageNum += 1
 
 		self.UpdateTextrankScore(articleCount)
+
 		print('Найдено {0} статей'.format(len(self.articles)))
 		return self.words, self.lines, self.articles
 
@@ -421,10 +449,15 @@ class Reader:
 		if self.generateWordList == True:
 			if (len(self.articles) > 0) and len(self.lines) > 0:
 				text = ''.join([x['text'] for x in self.lines if x['article_num'] == articleID])
-				values = textrank.keywords(text, language='russian', additional_stopwords=self.additional_stopwords, scores=True)
-				normalized_values = [self.morph.parse(v[0])[0].normal_form.strip() for v in values]
+				values = textrank.keywords(text, 
+					language='russian', 
+					additional_stopwords=self.stopwords, 
+					scores=True)
+				normalized_values = [self.morph.parse(v[0])[0].inflect({'sing', 'masc', 'nomn'}).word \
+						if self.morph.parse(v[0])[0].tag.POS in ['ADJF', 'ADJS', 'PRTF', 'PRTS'] \
+						else self.morph.parse(v[0])[0].normal_form.strip() for v in values]
 
 				for w in self.words:
 					if (w['article_num'] == articleID and w['morph_normalform'] in normalized_values):
 						i = normalized_values.index(w['morph_normalform'])
-						w['textrank_score'] = values[i][1] 
+						w['textrank_score'] = values[i][1]

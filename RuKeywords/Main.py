@@ -17,6 +17,11 @@ from tqdm import tqdm
 from Metrics import evaluate_keywords
 from tabulate import tabulate
 
+import nltk
+from nltk.corpus import stopwords
+from keras.models import Sequential
+from keras.layers import Dense
+
 def autolabel(ax, bar_plot, bar_label):
     for idx,rect in enumerate(bar_plot):
         height = rect.get_height()
@@ -495,7 +500,6 @@ def lemmaRuWithQuality():
 #lemmaEngWithQuality()
 #test_ru()
 #lemmaRuWithQuality()
-
 def ru_words_test():
 	lang = 'russian'
 
@@ -503,23 +507,33 @@ def ru_words_test():
 		reader = Reader('elsevier journal.pdf', generateWordList = True) #, language='russian')
 		reader.loadFile()
 		
-		words, lines, articles = reader.parseDocPages(14, 17)#0, 50)#()#2160, 2190)#0, 50)
+		words, lines, articles = reader.parseDocPages(19, 21)#(14, 17)#0, 50)#()#2160, 2190)#0, 50)
 		
 		#df_source = reader.getArticlesDataframe()
 
 		#print(words)
+		#print(' '.join([x['text'] for x in words]))
 
-		txt = ' '.join([x['text'] for x in words if x['article_num'] == 0])
-		words_0 = [x for x in words if x['article_num'] == 0]
+		#txt = ' '.join([x['text'] for x in words if x['article_num'] == 0])
+		#words_0 = [x for x in words if x['article_num'] == 0]
 
 		#for i, w in enumerate(words_0):
 		#	if (i > 50 and i < 80):
 		#		print(w['text'], ' ', w['sentence_count'], ' ', w['word_pos_in_sentence'])
 		
+		for i in range(11):
+			print(i)
+			if i != 6:
+				print(' '.join([x['text'] for x in words if x['block_count'] == i]))
+			else:
+				for j in range(15):
+					print(j, ' sentence')
+					print(' '.join([x['text'] for x in words if x['block_count'] == i and x['sentence_count'] == j]))
+			
 
 		#print([x['text'] for x in words_0 if x['is_keyword'] > 0])
 
-		print([x['text'] for x in words_0 if x['textrank_score'] != 0])
+		#print([x['text'] for x in words_0 if x['textrank_score'] != 0])
 
 		#for i, w in enumerate(words_0):
 		#	if (i > 50 and i < 80):
@@ -529,7 +543,8 @@ def ru_words_test():
 		#	print(j, ' block')
 		#	for i in range(10):
 		#		print(i, ' sentence')
-		#		print(' '.join([x['text'] for x in words if x['article_num'] == 0 and x['sentence_count'] == i
+		#		print(' '.join([x['text'] for x in words if x['article_num'] == 0 and
+		#		x['sentence_count'] == i
 		#			and x['block_count'] == j]))
 		#	print('-----')
 		print("--=-")
@@ -539,33 +554,72 @@ def ru_words_test():
 		df_source = loadArticlesInEnglish()
 
 
-def part_of_speech():
-	import rupostagger
-	import rutokenizer
-	from django.utils.encoding import smart_str, smart_text
+#ru_words_test();
+def SimpleNN():
+	lang = 'russian'
 
-	tokenizer = rutokenizer.Tokenizer()
-	tokenizer.load()
+	nltk.download("stopwords")
+	lst_stopwords = stopwords.words("russian")
+	alphabet = "АаБбВвГгДдЕеЁёЖжЗзИиЙйКкЛлМмНнОоПпСсТтУуФфХхЦцЧчШшЩщЪъЫыЬьЭэЮюЯя"
+	alphabet += "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	lst_stopwords.extend(list(alphabet))
+	#print(lst_stopwords)
 
-	
-	text = smart_text(u'кошки спят')
-	tokens = tokenizer.tokenize(text)
-	print(type(tokens))
-	print(tokens)
+	if lang == 'russian':
+		reader = Reader('elsevier journal.pdf',
+				  generateWordList = True, 
+				  additional_stopwords=lst_stopwords) #, language='russian')
+		reader.loadFile()
+		
+		words, lines, articles = reader.parseDocPages(19, 21)		
+		#print([x['text'] for x in words if x['is_stopword'] != 0])
+		print([x['text'] for x in words if x['frequency'] > 2])
+		x = words[0]
 
-	tagger = rupostagger.RuPosTagger()
-	tagger.load()
+		print(x['size'], 
+		x['flags'],
+		x['font'], 
+		x['color'],
+		x['otherSigns'], 
+		x['istitle'], 
+		x['isupper'], 
+		x['is_stopword'],
+		x['text'],
+		x['textrank_score'],
+		x['frequency'],
+		x['morph_score'], 
+		x['morph_pos'],
+		x['morph_animacy'], 
+		x['morph_aspect'],
+		x['morph_case'], 
+		x['morph_gender'],
+		x['morph_involvement'], 
+		x['morph_mood'],
+		x['morph_number'], 
+		x['morph_person'],
+		x['morph_tense'],
+		x['morph_transitivity'], 
+		x['morph_voice'],
+		x['morph_isnormal'], 
+		x['morph_normalform'], 
+		x['morph_lexeme'],
+		x['word_pos_in_sentence'])
 
-	tags = tagger.tag(tokens)
-	print(type(tags))
-	print(tags)
-	for word, label in tagger.tag(u'кошки спят'.split()):
-		print(u'{} -> {}'.format(word, label))
-	res = tagger.tag(u'кошки спят'.split())
-	print(type(res))
-	print(typeof(res[0]))
-	#for word, label in tagger.tag(u'кошки спят'.split()):
-#		print(u'{} -> {}'.format(word, label))
-
-ru_words_test();
-#part_of_speech()
+		X = []
+		for x in words:
+			X.append([x['size'], x['flags'],x['font'], x['color'], x['otherSigns'], x['istitle'], 
+					  x['isupper'], x['is_stopword'],
+		x['text'], x['textrank_score'],
+		x['frequency'],
+		x['morph_score'], x['morph_pos'],
+		x['morph_animacy'], x['morph_aspect'],
+		x['morph_case'], x['morph_gender'],
+		x['morph_involvement'], x['morph_mood'],
+		x['morph_number'], x['morph_person'],
+		x['morph_tense'], x['morph_transitivity'], 
+		x['morph_voice'], x['morph_isnormal'], 
+		x['morph_normalform'], x['morph_lexeme'],
+		x['word_pos_in_sentence']])
+		print(X[0:2])
+		
+SimpleNN()
