@@ -553,6 +553,8 @@ def ru_words_test():
 	else:
 		df_source = loadArticlesInEnglish()
 
+import numpy as np
+import pandas as pd
 
 #ru_words_test();
 def SimpleNN():
@@ -571,55 +573,101 @@ def SimpleNN():
 				  additional_stopwords=lst_stopwords) #, language='russian')
 		reader.loadFile()
 		
-		words, lines, articles = reader.parseDocPages(19, 21)		
+		words, lines, articles = reader.parseDocPages(19, 20) #1)		
 		#print([x['text'] for x in words if x['is_stopword'] != 0])
-		print([x['text'] for x in words if x['frequency'] > 2])
-		x = words[0]
+		#print([x['text'] for x in words if x['frequency'] > 2])
 
-		print(x['size'], 
-		x['flags'],
-		x['font'], 
-		x['color'],
-		x['otherSigns'], 
-		x['istitle'], 
-		x['isupper'], 
-		x['is_stopword'],
-		x['text'],
-		x['textrank_score'],
-		x['frequency'],
-		x['morph_score'], 
-		x['morph_pos'],
-		x['morph_animacy'], 
-		x['morph_aspect'],
-		x['morph_case'], 
-		x['morph_gender'],
-		x['morph_involvement'], 
-		x['morph_mood'],
-		x['morph_number'], 
-		x['morph_person'],
-		x['morph_tense'],
-		x['morph_transitivity'], 
-		x['morph_voice'],
-		x['morph_isnormal'], 
-		x['morph_normalform'], 
-		x['morph_lexeme'],
-		x['word_pos_in_sentence'])
+		df = pd.DataFrame.from_dict(words)
 
-		X = []
-		for x in words:
-			X.append([x['size'], x['flags'],x['font'], x['color'], x['otherSigns'], x['istitle'], 
-					  x['isupper'], x['is_stopword'],
-		x['text'], x['textrank_score'],
-		x['frequency'],
-		x['morph_score'], x['morph_pos'],
-		x['morph_animacy'], x['morph_aspect'],
-		x['morph_case'], x['morph_gender'],
-		x['morph_involvement'], x['morph_mood'],
-		x['morph_number'], x['morph_person'],
-		x['morph_tense'], x['morph_transitivity'], 
-		x['morph_voice'], x['morph_isnormal'], 
-		x['morph_normalform'], x['morph_lexeme'],
-		x['word_pos_in_sentence']])
-		print(X[0:2])
+		cat_features = ['size', 'flags', 'font', 'otherSigns', 
+		'morph_pos', 'morph_animacy', 'morph_aspect', 'morph_case',
+		'morph_gender', 'morph_involvement', 'morph_mood',
+		'morph_number', 'morph_person', 'morph_tense',
+		'morph_transitivity', 'morph_voice']
+
+		all_columns = list(df.columns)
+		df = pd.concat([pd.get_dummies(df[col], prefix=col)
+							if col in cat_features else df[col] for col in all_columns]
+							, axis=1)
+		print('all columns')
+		for col in all_columns:
+			print(col)
+		print()
+
+		print('new columns')
+		for col in df.columns:
+			print(col)
+
+		df.head()
+
+		#for feature in features:
+		#	x = np.array([w[feature] for w in words])
+		#	unique, counts = np.unique(x, return_counts=True)
+
+		#	if (feature == 'morph_pos'):
+		#		possible_options = ['NOUN', 'ADJF','ADJS','COMP','VERB',
+		#				'INFN','PRTF','PRTS','GRND','NUMR','ADVB','NPRO',
+		#				'PRED','PREP','CONJ','PRCL','INTJ']
+
+		#		data_to_add = []
+		#		for _x in x:
+		#			data_to_add.append([1 if v == _x else 0 for v in possible_options ])
+
+		#		all_data = append_fields(all_data,
+		#					 possible_options, 
+		#					data_to_add,
+		#					usemask=False)
+
+		#	print(feature)
+		#	print(len(counts))
+		#	print("--=--")
+
+		#x = words[0]
+
+		#print(x['size'], 
+		#x['flags'],
+		#x['font'], 
+		#x['color'],
+		#x['otherSigns'], 
+		#x['istitle'], 
+		#x['isupper'], 
+		#x['is_stopword'],
+		#x['text'],
+		#x['textrank_score'],
+		#x['frequency'],
+		#x['morph_score'], 
+		#x['morph_pos'],
+		#x['morph_animacy'], 
+		#x['morph_aspect'],
+		#x['morph_case'], 
+		#x['morph_gender'],
+		#x['morph_involvement'], 
+		#x['morph_mood'],
+		#x['morph_number'], 
+		#x['morph_person'],
+		#x['morph_tense'],
+		#x['morph_transitivity'], 
+		#x['morph_voice'],
+		#x['morph_isnormal'], 
+		#x['morph_normalform'], 
+		#x['morph_lexeme'],
+		#x['word_pos_in_sentence'])
+
+		#X = []
+		#for x in words:
+		#	X.append([x['size'], x['flags'],x['font'], x['color'], x['otherSigns'], x['istitle'], 
+		#			  x['isupper'], x['is_stopword'],
+		#x['text'], x['textrank_score'],
+		#x['frequency'],
+		#x['morph_score'], x['morph_pos'],
+		#x['morph_animacy'], x['morph_aspect'],
+		#x['morph_case'], x['morph_gender'],
+		#x['morph_involvement'], x['morph_mood'],
+		#x['morph_number'], x['morph_person'],
+		#x['morph_tense'], x['morph_transitivity'], 
+		#x['morph_voice'], x['morph_isnormal'], 
+		#x['morph_normalform'], x['morph_lexeme'],
+		#x['word_pos_in_sentence']])
+		#print(X[0:2])
 		
 SimpleNN()

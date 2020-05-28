@@ -281,7 +281,8 @@ class Reader:
 												otherSigns = ""
 
 											otherSigns += "".join(re.findall("[^а-яА-Яa-zA-Z,ёЁ-]", word))
-											
+											#otherSigns = otherSigns.replace(chr(60), chr(171)).replace(chr(62), chr(187)).replace('<', '(').replace('>', ')')
+
 											if (not otherSigns == ""): #(regex.match(word)):
 												word = "".join(re.findall("[а-яА-Яa-zA-Z,ёЁ-]+", word))
 											
@@ -357,22 +358,22 @@ class Reader:
 														  'textrank_score': 0,
 														  'frequency': wordsCounter.get(word_normal_form),
 
-														  'morph_score' : x.score,
-														  'morph_pos' : x.tag.POS, # Part of Speech, часть речи,
-														  'morph_animacy' : x.tag.animacy, # одушевленность
-														  'morph_aspect' : x.tag.aspect, # вид: совершенный или несовершенный
-														  'morph_case' : x.tag.case, # падеж
-														  'morph_gender' : x.tag.gender, # род (мужской, женский, средний)
-														  'morph_involvement' : x.tag.involvement, # включенность говорящего в действие
-														  'morph_mood' : x.tag.mood, # наклонение (повелительное, изъявительное)
-														  'morph_number' : x.tag.number, # число (единственное, множественное)
-														  'morph_person' : x.tag.person, # лицо (1, 2, 3)
-														  'morph_tense' : x.tag.tense, # время (настоящее, прошедшее, будущее)
-														  'morph_transitivity' : x.tag.transitivity, # переходность (переходный, непереходный)
-														  'morph_voice' : x.tag.voice, # залог (действительный, страдательный)
+														  'morph_score' : 0 if x.score is None else x.score ,
+														  'morph_pos' : '' if x.tag.POS is None else x.tag.POS , # Part of Speech, часть речи,
+														  'morph_animacy' :'' if x.tag.animacy is None else x.tag.animacy, # одушевленность
+														  'morph_aspect' : '' if x.tag.aspect is None else x.tag.aspect, # вид: совершенный или несовершенный
+														  'morph_case' : '' if x.tag.case is None else x.tag.case, # падеж
+														  'morph_gender' : '' if x.tag.gender is None else x.tag.gender, # род (мужской, женский, средний)
+														  'morph_involvement' : '' if x.tag.involvement is None else x.tag.involvement, # включенность говорящего в действие
+														  'morph_mood' : '' if x.tag.mood is None else x.tag.mood, # наклонение (повелительное, изъявительное)
+														  'morph_number' : '' if x.tag.number is None else x.tag.number, # число (единственное, множественное)
+														  'morph_person' : '' if x.tag.person is None else x.tag.person, # лицо (1, 2, 3)
+														  'morph_tense' : '' if x.tag.tense is None else x.tag.tense, # время (настоящее, прошедшее, будущее)
+														  'morph_transitivity' : '' if x.tag.transitivity is None else x.tag.transitivity, # переходность (переходный, непереходный)
+														  'morph_voice' : '' if x.tag.voice is None else x.tag.voice, # залог (действительный, страдательный)
 														  'morph_isnormal' : x.normal_form == x.word, # слово в неопределенной форме : да / нет
 														  'morph_normalform' : word_normal_form, # неопределенная форма
-														  'morph_lexeme' : x.lexeme[0][0], # лексема
+														  'morph_lexeme' : '' if x.lexeme[0][0] is None else x.lexeme[0][0], # лексема
 														  
 														  'word_pos_in_sentence': word_pos_in_sentence,
 														  'span_count': span_count,
