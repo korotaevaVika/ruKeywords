@@ -579,7 +579,7 @@ def SimpleNN():
 
 		df = pd.DataFrame.from_dict(words)
 
-		cat_features = ['size', 'flags', 'font', 'otherSigns', 
+		cat_features = ['size', 'flags', 'font', #'otherSigns', 
 		'morph_pos', 'morph_animacy', 'morph_aspect', 'morph_case',
 		'morph_gender', 'morph_involvement', 'morph_mood',
 		'morph_number', 'morph_person', 'morph_tense',
@@ -587,8 +587,15 @@ def SimpleNN():
 
 		all_columns = list(df.columns)
 		df = pd.concat([pd.get_dummies(df[col], prefix=col)
-							if col in cat_features else df[col] for col in all_columns]
+							if col in cat_features and col != 'otherSigns' else df[col] for col in all_columns]
 							, axis=1)
+
+		values = [',', '.', '\)', '\(', '\[', '\]']
+
+		for value in values:
+			df[str('otherSigns' + '_' + value)] = np.where(df['otherSigns'].str.contains(value), "1", "0") 
+		df = df.drop(['otherSigns'], axis=1)
+
 		print('all columns')
 		for col in all_columns:
 			print(col)

@@ -126,6 +126,17 @@ class Reader:
 		normalized_keywords = None
 		wordsCounter = {}
 
+		patterns = [(r'(\d{1,2})(–|-|.)(\d{1,2})(–|-|.)(\d{4})+', 'D', None), #dd.mm.yyyy or dd-mm-yyyy
+			(r'(\d{1,2}|\d{1,2}(–|-|.)\d{1,2})(–|-|.)(\d{1,2})(–|-|.)(\d{4})+', 'D', None), #dd-dd.mm.yyyy
+			(r'(\d{1,2}|\d{1,2}(–|-|.)\d{1,2})()(\d{1,2})(–|-|.)(\d{4})+', 'D', None), #dd{?}dd.mm.yyyy
+			(r'((\d{1,2})(–|-|.)(\d{1,2})-(\d{1,2})(–|-|.)(\d{1,2}))(–|-|.)(\d{4})+' , 'D', None), #dd.mm-dd.mm.yyyy
+			(r'(\d{1,2})(–|-|.)(\d{1,2})(–|-|.)(\d{4})(–|-|.)(\d{1,2})(–|-|.)(\d{1,2})(–|-|.)(\d{4})', 'D', None),  #dd.mm.yyyy-dd.mm.yyyy
+			(r'(\d{4})(–|-|.)(\d{1,2})(–|-|.)(\d{1,2})+', 'D', None), #yyyy.dd.mm or yyyy.dd-mm
+			(r'.*([1-3][0-9]{3})', 'Y', 'D'), #yyyy
+			(r'.*(http)+', 'L', None), #urLink  
+			(r'.*(:/)+', 'L', None) #urLink    
+			]
+
 		#tag_dict = {"J": wordnet.ADJ,
 		#			"N": wordnet.NOUN,
 		#			"V": wordnet.VERB,
@@ -175,6 +186,7 @@ class Reader:
 								isKeywordsSpan = False
 								normalized_keywords = None
 								wordsCounter = {}
+								isURL = False
 
 								self.UpdateTextrankScore(articleCount - 1)
 
@@ -280,12 +292,29 @@ class Reader:
 												word = txt
 												otherSigns = ""
 
-											otherSigns += "".join(re.findall("[^а-яА-Яa-zA-Z,ёЁ-]", word))
-											#otherSigns = otherSigns.replace(chr(60), chr(171)).replace(chr(62), chr(187)).replace('<', '(').replace('>', ')')
+											otherSigns += "".join(re.findall("[^а-яА-Яa-zA-Z0-9,ёЁ-]", word))
+											#otherSigns = otherSigns.replace(chr(60), chr(171)).replace(chr(62),
+											#chr(187)).replace('<', '(').replace('>', ')')
 
 											if (not otherSigns == ""): #(regex.match(word)):
 												word = "".join(re.findall("[а-яА-Яa-zA-Z,ёЁ-]+", word))
 											
+											if 'http' in word and isURL == False:
+												isURL = True
+												word = ""
+											elif isURL == True:
+												if ')' in otherSigns:
+													word = ""
+													isURL = False
+													#containDigits = False
+													#if sum(c.isdigit() for c in otherSigns) > 0:
+													#	containDigits = True
+													otherSigns = otherSigns.split(')')[1] 
+													
+													# self.matchPatterns(otherSigns, patterns)													
+												else:
+													word = ""
+
 											if (self.generateWordList == True and word == "" and '.' in otherSigns):
 												self.words[-1]['otherSigns'] = otherSigns
 												dot_found = True
@@ -344,6 +373,20 @@ class Reader:
 												word_normal_form = x.inflect({'sing', 'masc', 'nomn'}).word
 
 											wordsCounter[word_normal_form] = wordsCounter.get(word_normal_form, 0) + 1
+
+											#if not otherSigns == '':
+											#	digitsNumber = 0
+											#	digitsNumber = sum(c.isdigit() for c in otherSigns) 
+											#	if digitsNumber > 0:
+											#		if (',' in self.words[-1]['otherSigns']) and ')' in otherSigns:
+											#			if otherSigns[-1] == ')':
+											#				otherSigns = ""
+											#			else:
+											#				otherSigns = otherSigns.splt(')')[1] 
+											#		else:
+											#			inds = [i for i, c in enumerate(otherSigns) if c.isdigit()]
+											#			otherSigns = otherSigns.replace(otherSigns[inds[0]:inds[-1]+1], '')
+											#	#otherSigns = self.matchPatterns(otherSigns, patterns)
 
 											self.words.append({'size':span['size'], 
 														  'flags': span['flags'],
@@ -419,6 +462,18 @@ class Reader:
 				txt = cyrillic
 			return txt
 
+	def matchPatterns(self, string, patterns):
+		result = ''
+		text = string
+		for p in patterns:
+			if ((re.match(p[0], string)) 
+				and (p[1] not in result) 
+				and (p[2] is None 
+					 or p[2] == ''
+					 or max([1 if symbol in result else 0 for symbol in p[2]]) == 0)):
+				result += p[1]
+				text = re.sub(p[0].replace('.*', ''), p[1], text)            
+		return text
 
 	"""
 	Return articles text dataframe for statistical measurement
