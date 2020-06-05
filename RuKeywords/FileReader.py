@@ -148,7 +148,13 @@ class Reader:
 			dictionary = page.getText("dict")
 			#block_count = 0
 			goToNextPage = False
+
+			print("pageNum " + str(pageNum) + " articleCount " + str(articleCount))
 			
+			if (pageNum in [10, 14, 15, 19, 20]):
+				print('stop')
+
+			first_block_in_page = True;
 			for x in dictionary['blocks'][:]:
 				authorsBlock = False
 				isKeywordsSpan = False
@@ -173,7 +179,7 @@ class Reader:
 							span_count = 0
 							processSpans = True
 
-							if (block_count == 0 and line_count == 0 and 'Bold' in line['spans'][0]['font']):
+							if (first_block_in_page == True and line_count == 0 and 'Bold' in line['spans'][0]['font']):
 
 								isNewArticle = True
 								processSpans = False
@@ -190,7 +196,7 @@ class Reader:
 
 								self.UpdateTextrankScore(articleCount - 1)
 
-							elif (block_count == 0 and authorsBlock == True and 'Bold' in line['spans'][0]['font']):
+							elif (first_block_in_page == True and authorsBlock == True and 'Bold' in line['spans'][0]['font']):
 
 								author += smart_text(line['spans'][0]['text'])
 								processSpans = False
@@ -256,7 +262,7 @@ class Reader:
 											self.lines[-1]['text'] = self.lines[-1]['text'][:-n]
 											prevWord['text'] = prevWord['text'][:-1]
 
-											if (prevWord != None and len(prevWord['text'][0]) > 0 and not(prevWord['text'][0] == ' ' or prevWord['text'][0] == '')):
+											if (prevWord != None and len(prevWord['text']) > 0 and not(prevWord['text'][0] == ' ' or prevWord['text'][0] == '')):
 												lineText += ' '
 											
 											lineText += prevWord['text'] 
@@ -286,7 +292,8 @@ class Reader:
 											#запишем слово вместе с его слогами с предыдущей строки
 											if not prevWord is None and not (txt in [" ", ""]):
 												word = prevWord['text'] + txt
-												otherSigns = prevWord['otherSigns']
+												if 'otherSigns' in prevWord:
+													otherSigns = prevWord['otherSigns']
 												prevWord = None
 											else:
 												word = txt
@@ -393,10 +400,10 @@ class Reader:
 														  'font': span['font'],
 														  'color': span['color'],
 														  'otherSigns': otherSigns,
-														  'istitle': word[0:2].istitle(),
-														  'isupper': word.isupper(),
-														  'is_keyword': is_keyword,
-														  'is_stopword': is_stopword,
+														  'istitle': (int)(word[0:2].istitle()),
+														  'isupper': (int)(word.isupper()),
+														  'is_keyword': (int)(is_keyword),
+														  'is_stopword': (int)(is_stopword),
 														  'text': word, #unicodedata.normalize('NFKC', txt),
 														  'textrank_score': 0,
 														  'frequency': wordsCounter.get(word_normal_form),
@@ -414,7 +421,7 @@ class Reader:
 														  'morph_tense' : '' if x.tag.tense is None else x.tag.tense, # время (настоящее, прошедшее, будущее)
 														  'morph_transitivity' : '' if x.tag.transitivity is None else x.tag.transitivity, # переходность (переходный, непереходный)
 														  'morph_voice' : '' if x.tag.voice is None else x.tag.voice, # залог (действительный, страдательный)
-														  'morph_isnormal' : x.normal_form == x.word, # слово в неопределенной форме : да / нет
+														  'morph_isnormal' : (int)(x.normal_form == x.word), # слово в неопределенной форме : да / нет
 														  'morph_normalform' : word_normal_form, # неопределенная форма
 														  'morph_lexeme' : '' if x.lexeme[0][0] is None else x.lexeme[0][0], # лексема
 														  
@@ -438,6 +445,7 @@ class Reader:
 							break
 
 						block_count += 1
+						first_block_in_page = False;
 						sentence_count = 0
 						dot_found = False
 						word_pos_in_sentence = 0

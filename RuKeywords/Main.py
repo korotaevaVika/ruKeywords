@@ -557,7 +557,18 @@ import numpy as np
 import pandas as pd
 
 #ru_words_test();
+
+
+# first neural network with keras tutorial
+from keras.models import Sequential
+from keras.layers import Dense
+import tensorflow as tf
+import warnings
+
+
 def SimpleNN():
+	warnings.filterwarnings("ignore")
+
 	lang = 'russian'
 
 	nltk.download("stopwords")
@@ -573,13 +584,20 @@ def SimpleNN():
 				  additional_stopwords=lst_stopwords) #, language='russian')
 		reader.loadFile()
 		
-		words, lines, articles = reader.parseDocPages(19, 20) #1)		
+		words, lines, articles = reader.parseDocPages(19, 20) #1)
 		#print([x['text'] for x in words if x['is_stopword'] != 0])
-		#print([x['text'] for x in words if x['frequency'] > 2])
+                                                       		#print([x['text'] for
+            		#x
+                                                                   		#in
+                                                                   		#words
+                                                                   		#if
+                                                                   		#x['frequency']
+                                                                   		#>
+                                                                                                                                                                     		#2])
 
 		df = pd.DataFrame.from_dict(words)
 
-		cat_features = ['size', 'flags', 'font', #'otherSigns', 
+		cat_features = ['size', 'flags', 'font', #'otherSigns',
 		'morph_pos', 'morph_animacy', 'morph_aspect', 'morph_case',
 		'morph_gender', 'morph_involvement', 'morph_mood',
 		'morph_number', 'morph_person', 'morph_tense',
@@ -607,6 +625,35 @@ def SimpleNN():
 
 		df.head()
 
+		
+		# features = [c for c in df.columns if c not in featuresToRemove];
+
+		featuresToRemove = ['text', 'morph_normalform', 'morph_lexeme',
+							 'span_count', 'line_count', 'block_count',
+							 #'sentence_count',
+							 'page_num', 'article_num']
+
+		df = df.drop(featuresToRemove, axis=1)
+
+		# convert all columns of DataFrame
+		df = df.apply(pd.to_numeric)
+
+		print("df.dtypes")
+		print(df.dtypes)
+
+		target = df.pop('is_keyword')
+		dataset = tf.data.Dataset.from_tensor_slices((df.values, target.values))
+
+		#for feat, targ in dataset.take(5):
+			#print ('Features: {}, Target: {}'.format(feat, targ))
+
+		train_dataset = dataset.shuffle(len(df)).batch(1)
+
+		model = get_compiled_model()
+		#model.fit(train_dataset, epochs=15)
+		model.fit(np.array(df.values),np.array(target.values), epochs=1500, batch_size=10)
+		print('fine')
+
 		#for feature in features:
 		#	x = np.array([w[feature] for w in words])
 		#	unique, counts = np.unique(x, return_counts=True)
@@ -621,7 +668,7 @@ def SimpleNN():
 		#			data_to_add.append([1 if v == _x else 0 for v in possible_options ])
 
 		#		all_data = append_fields(all_data,
-		#					 possible_options, 
+		#					 possible_options,
 		#					data_to_add,
 		#					usemask=False)
 
@@ -631,38 +678,39 @@ def SimpleNN():
 
 		#x = words[0]
 
-		#print(x['size'], 
+		#print(x['size'],
 		#x['flags'],
-		#x['font'], 
+		#x['font'],
 		#x['color'],
-		#x['otherSigns'], 
-		#x['istitle'], 
-		#x['isupper'], 
+		#x['otherSigns'],
+		#x['istitle'],
+		#x['isupper'],
 		#x['is_stopword'],
 		#x['text'],
 		#x['textrank_score'],
 		#x['frequency'],
-		#x['morph_score'], 
+		#x['morph_score'],
 		#x['morph_pos'],
-		#x['morph_animacy'], 
+		#x['morph_animacy'],
 		#x['morph_aspect'],
-		#x['morph_case'], 
+		#x['morph_case'],
 		#x['morph_gender'],
-		#x['morph_involvement'], 
+		#x['morph_involvement'],
 		#x['morph_mood'],
-		#x['morph_number'], 
+		#x['morph_number'],
 		#x['morph_person'],
 		#x['morph_tense'],
-		#x['morph_transitivity'], 
+		#x['morph_transitivity'],
 		#x['morph_voice'],
-		#x['morph_isnormal'], 
-		#x['morph_normalform'], 
+		#x['morph_isnormal'],
+		#x['morph_normalform'],
 		#x['morph_lexeme'],
 		#x['word_pos_in_sentence'])
 
 		#X = []
 		#for x in words:
-		#	X.append([x['size'], x['flags'],x['font'], x['color'], x['otherSigns'], x['istitle'], 
+		#	X.append([x['size'], x['flags'],x['font'], x['color'], x['otherSigns'],
+		#	x['istitle'],
 		#			  x['isupper'], x['is_stopword'],
 		#x['text'], x['textrank_score'],
 		#x['frequency'],
@@ -671,10 +719,186 @@ def SimpleNN():
 		#x['morph_case'], x['morph_gender'],
 		#x['morph_involvement'], x['morph_mood'],
 		#x['morph_number'], x['morph_person'],
-		#x['morph_tense'], x['morph_transitivity'], 
-		#x['morph_voice'], x['morph_isnormal'], 
+		#x['morph_tense'], x['morph_transitivity'],
+		#x['morph_voice'], x['morph_isnormal'],
 		#x['morph_normalform'], x['morph_lexeme'],
 		#x['word_pos_in_sentence']])
 		#print(X[0:2])
+def get_compiled_model():
+	model = tf.keras.Sequential([tf.keras.layers.Dense(71, input_shape=(71,), activation='relu'),
+	tf.keras.layers.Dense(71, activation='relu'),
+	tf.keras.layers.Dense(1)])
+
+	
+	model.compile(optimizer='adam',
+					loss='binary_crossentropy', #tf.keras.losses.BinaryCrossentropy(from_logits=True),
+					metrics=['accuracy'])
+	return model
+
+#SimpleNN() 
+
+def TestNN():
+	# first neural network with keras tutorial
+	from numpy import loadtxt
+	from keras.models import Sequential
+	from keras.layers import Dense
+
+	# load the dataset
+	dataset = loadtxt('pima-indians-diabetes.csv', delimiter=',')
+	# split into input (X) and output (y) variables
+	X = dataset[:,0:8]
+	y = dataset[:,8]
+
+	# define the keras model
+	model = Sequential()
+	model.add(Dense(12, input_dim=8, activation='relu'))
+	model.add(Dense(8, activation='relu'))
+	model.add(Dense(1, activation='sigmoid'))
+
+	# compile the keras model
+	model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+	# fit the keras model on the dataset
+	model.fit(X, y, epochs=150, batch_size=10)
+	
+	# evaluate the keras model
+	_, accuracy = model.evaluate(X, y)
+	print('Accuracy: %.2f' % (accuracy * 100))
+
+	# make class predictions with the model
+	predictions = model.predict_classes(X)
+	# summarize the first 5 cases
+	for i in range(5):
+		print('%s => %d (expected %d)' % (X[i].tolist(), predictions[i], y[i]))
+	print('the end')
+
+#TestNN()
+
+
+import re;
+import pymorphy2
+from collections import Counter
+
+def test_ru_graph_keys_words_numbers():
+	lang = 'russian'
+	reader = Reader('elsevier journal.pdf') #, language='russian')
+	reader.loadFile()
 		
-SimpleNN()
+	words, lines, articles = reader.parseDocPages()#0, 50)#()#2160, 2190)#0, 50)
+	print(len(articles))
+
+	df_source = reader.getArticlesDataframe()
+	df = df_source.copy()
+
+	df['text'] = ''
+	df['noun_phrases_num'] = 0
+	processor = Preprocessor(stopwordsList=None, lang=lang)
+	sw = processor.stopwords
+
+	
+	morph = pymorphy2.MorphAnalyzer()
+	for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+		text = processor.preprocess_text(row['Source Text'], removeStopWords=True, useLemmas=False)
+		df.at[index, 'text'] = text
+		pos = [morph.parse(w)[0].tag.POS for w in re.findall(r"[\w']+", text)]
+		count = Counter(pos)
+		df.at[index, 'noun_phrases_num'] = count['NOUN'] + count['ADJF'] + count['PRTF']
+		
+	df['keys_phrases_num'] = df.apply(lambda row: len(row['Keywords'].split(',')), axis=1)
+	df['keys_words_num'] = df.apply(lambda row: len((re.findall(r"[\w']+", row['Keywords']))), axis=1)
+	df['words_num_sw_incl'] = df.apply(lambda row: len((re.findall(r"[\w']+", row['Source Text']))), axis=1)
+	df['words_num'] = df.apply(lambda row: len((re.findall(r"[\w']+", row['text']))), axis=1)
+	
+	stats = df[['keys_phrases_num', 'keys_words_num', 'words_num', 'words_num_sw_incl', 'noun_phrases_num']]
+	stats.to_excel("noun_phrases_num.xlsx") 
+	#stats.to_excel("keys_words_number_stats.xlsx") 
+	
+	lst_phrases =  stats['keys_phrases_num'].tolist()
+	lst_keys =  stats['keys_words_num'].tolist()
+	lst_words =  stats['words_num'].tolist()
+	lst_words_num_sw_incl =  stats['words_num_sw_incl'].tolist()
+	lst_noun_phrases_num =  stats['noun_phrases_num'].tolist()
+
+	x = list(range(1, len(lst_words)+1))
+	
+	plt.figure()
+	plt.plot(x,lst_phrases)
+	# Show/save figure as desired.
+	title = 'Количество ключевых фраз'
+	plt.title(title)
+	#  Добавляем подписи к осям:
+	plt.xlabel("Номер статьи")
+	plt.ylabel('Количество ключевых фраз')
+	plt.savefig(title + " lst_phrases" + ".png", bbox_inches='tight')
+	plt.show()
+
+	plt.figure()
+	plt.plot(x,lst_keys)
+	# Show/save figure as desired.
+	title = 'Количество ключевых слов'
+	plt.title(title)	
+	#  Добавляем подписи к осям:
+	plt.xlabel("Номер статьи")
+	plt.ylabel('Количество ключевых слов')
+	plt.savefig(title + " lst_keys" + ".png", bbox_inches='tight')
+	plt.show()
+
+	plt.figure()
+	plt.plot(x,lst_words_num_sw_incl)
+	# Show/save figure as desired.
+	title = 'Количество слов в текстах'
+	plt.title(title)
+	#  Добавляем подписи к осям:
+	plt.xlabel("Номер статьи")
+	plt.ylabel('Количество слов в тексте статьи')
+	plt.savefig(title + " words_num_sw_incl" + ".png", bbox_inches='tight')
+	plt.show()
+
+	plt.figure()
+	plt.plot(x,lst_words)
+	# Show/save figure as desired.
+	title = 'Количество слов в текстах (без стопслов)'
+	plt.title(title)
+	#  Добавляем подписи к осям:
+	plt.xlabel("Номер статьи")
+	plt.ylabel('Количество слов в тексте статьи')
+	plt.savefig(title + " lst_words" + ".png", bbox_inches='tight')
+	plt.show()
+
+	plt.figure()
+	plt.plot(x,lst_noun_phrases_num)
+	# Show/save figure as desired.
+	title = 'Количество существительных, прилагательных и причастий в текстах'
+	plt.title(title)
+	#  Добавляем подписи к осям:
+	plt.xlabel("Номер статьи")
+	plt.ylabel('Количество слов')
+	plt.savefig(title + " lst_noun_phrases_num" + ".png", bbox_inches='tight')
+	plt.show()
+
+	plt.figure()
+	plt.plot(x,lst_words_num_sw_incl, 'b', label='С учетом стопслов')
+	plt.plot(x,lst_words, 'g', label='Без учета стопслов')
+	plt.plot(x,lst_noun_phrases_num, 'y', label='Существительные, прилагательные и причастия')
+	# Show/save figure as desired.
+	title = 'Сравнение количества слов в текстах'
+	plt.title(title)
+	#  Добавляем подписи к осям:
+	plt.xlabel("Номер статьи")
+	plt.ylabel('Количество слов')
+	plt.savefig(title + " compare_words_num_on_sw_pos" + ".png", bbox_inches='tight')
+	plt.show()
+
+
+test_ru_graph_keys_words_numbers()
+
+
+def test_posstager():
+	import rupostagger
+
+	tagger = rupostagger.RuPosTagger()
+	tagger.load()
+	for word, label in tagger.tag(u'кошки спят'.split()):
+		print(u'{} -> {}'.format(word, label))
+
+#test_posstager()

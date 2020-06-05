@@ -11,7 +11,7 @@ import re
 
 import rutokenizer #https://github.com/Koziev/
 import rupostagger #Anaconda Promt as Admin
-#cd C:\Users\Виктория\Downloads\ruword2tags-master\ruword2tags-master 
+#cd C:\Users\Виктория\Downloads\ruword2tags-master\ruword2tags-master  or #cd C:\Users\ruword2tags-master\ruword2tags-master 
 ###pip install -e .
 import rulemma
 
