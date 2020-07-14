@@ -124,7 +124,9 @@ class Reader:
 		isKeywordsSpan = False
 		keywords = ''
 		normalized_keywords = None
+		keywords_frequency = 0
 		wordsCounter = {}
+		isURL = False
 
 		patterns = [(r'(\d{1,2})(–|-|.)(\d{1,2})(–|-|.)(\d{4})+', 'D', None), #dd.mm.yyyy or dd-mm-yyyy
 			(r'(\d{1,2}|\d{1,2}(–|-|.)\d{1,2})(–|-|.)(\d{1,2})(–|-|.)(\d{4})+', 'D', None), #dd-dd.mm.yyyy
@@ -151,8 +153,8 @@ class Reader:
 
 			print("pageNum " + str(pageNum) + " articleCount " + str(articleCount))
 			
-			if (pageNum in [10, 14, 15, 19, 20]):
-				print('stop')
+			#if (pageNum in [10, 14, 15, 19, 20]):
+			#	print('stop')
 
 			first_block_in_page = True;
 			for x in dictionary['blocks'][:]:
@@ -350,8 +352,10 @@ class Reader:
 														for i, w in enumerate(self.words):
 
 															if (w['article_num'] == articleCount and w['block_count'] == block_count and w['sentence_count'] == sentence_count):
-																w['word_pos_in_sentence'] /= words_in_sentence
-																											
+																if (words_in_sentence != 0):
+																	w['word_pos_in_sentence'] /= words_in_sentence
+																else: 
+																	w['word_pos_in_sentence'] = 0
 													sentence_count += 1
 												elif dot_found and len(word) > 0 and word[0].islower():
 													dot_found = False
@@ -359,6 +363,8 @@ class Reader:
 											if not normalized_keywords is None and len(normalized_keywords) > 0:
 												is_keyword = max([1 for k in normalized_keywords \
 													if x.normal_form in k], default=0) # 1 -> 1 / len(k); max -> sum
+												if (is_keyword == 1):
+													keywords_frequency += 1
 											else:
 												is_keyword = 0
 											
@@ -377,7 +383,9 @@ class Reader:
 											
 											word_normal_form = x.normal_form
 											if x.tag.POS in ['ADJF', 'ADJS', 'PRTF', 'PRTS']:
-												word_normal_form = x.inflect({'sing', 'masc', 'nomn'}).word
+												word_inflect = x.inflect({'sing', 'masc', 'nomn'})
+												if (word_inflect is not None):
+													word_normal_form = x.inflect({'sing', 'masc', 'nomn'}).word
 
 											wordsCounter[word_normal_form] = wordsCounter.get(word_normal_form, 0) + 1
 
@@ -453,7 +461,7 @@ class Reader:
 			pageNum += 1
 
 		self.UpdateTextrankScore(articleCount)
-
+		print('keywords_frequency = {0} '.format(keywords_frequency))
 		print('Найдено {0} статей'.format(len(self.articles)))
 		return self.words, self.lines, self.articles
 
@@ -518,7 +526,7 @@ class Reader:
 					additional_stopwords=self.stopwords, 
 					scores=True)
 				normalized_values = [self.morph.parse(v[0])[0].inflect({'sing', 'masc', 'nomn'}).word \
-						if self.morph.parse(v[0])[0].tag.POS in ['ADJF', 'ADJS', 'PRTF', 'PRTS'] \
+						if self.morph.parse(v[0])[0].tag.POS in ['ADJF', 'ADJS', 'PRTF', 'PRTS'] and self.morph.parse(v[0])[0].inflect({'sing', 'masc', 'nomn'}) is not None \
 						else self.morph.parse(v[0])[0].normal_form.strip() for v in values]
 
 				for w in self.words:

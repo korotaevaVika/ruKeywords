@@ -509,18 +509,6 @@ def ru_words_test():
 		
 		words, lines, articles = reader.parseDocPages(19, 21)#(14, 17)#0, 50)#()#2160, 2190)#0, 50)
 		
-		#df_source = reader.getArticlesDataframe()
-
-		#print(words)
-		#print(' '.join([x['text'] for x in words]))
-
-		#txt = ' '.join([x['text'] for x in words if x['article_num'] == 0])
-		#words_0 = [x for x in words if x['article_num'] == 0]
-
-		#for i, w in enumerate(words_0):
-		#	if (i > 50 and i < 80):
-		#		print(w['text'], ' ', w['sentence_count'], ' ', w['word_pos_in_sentence'])
-		
 		for i in range(11):
 			print(i)
 			if i != 6:
@@ -531,25 +519,7 @@ def ru_words_test():
 					print(' '.join([x['text'] for x in words if x['block_count'] == i and x['sentence_count'] == j]))
 			
 
-		#print([x['text'] for x in words_0 if x['is_keyword'] > 0])
-
-		#print([x['text'] for x in words_0 if x['textrank_score'] != 0])
-
-		#for i, w in enumerate(words_0):
-		#	if (i > 50 and i < 80):
-		#		print(w['text'], ' ', w['sentence_count'], ' ', w['word_pos_in_sentence'])
-
-		#for j in range(23):
-		#	print(j, ' block')
-		#	for i in range(10):
-		#		print(i, ' sentence')
-		#		print(' '.join([x['text'] for x in words if x['article_num'] == 0 and
-		#		x['sentence_count'] == i
-		#			and x['block_count'] == j]))
-		#	print('-----')
 		print("--=-")
-		#print(txt)
-		#print("test")
 	else:
 		df_source = loadArticlesInEnglish()
 
@@ -565,6 +535,12 @@ from keras.layers import Dense
 import tensorflow as tf
 import warnings
 
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 def SimpleNN():
 	warnings.filterwarnings("ignore")
@@ -576,7 +552,6 @@ def SimpleNN():
 	alphabet = "АаБбВвГгДдЕеЁёЖжЗзИиЙйКкЛлМмНнОоПпСсТтУуФфХхЦцЧчШшЩщЪъЫыЬьЭэЮюЯя"
 	alphabet += "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	lst_stopwords.extend(list(alphabet))
-	#print(lst_stopwords)
 
 	if lang == 'russian':
 		reader = Reader('elsevier journal.pdf',
@@ -584,20 +559,11 @@ def SimpleNN():
 				  additional_stopwords=lst_stopwords) #, language='russian')
 		reader.loadFile()
 		
-		words, lines, articles = reader.parseDocPages(19, 20) #1)
-		#print([x['text'] for x in words if x['is_stopword'] != 0])
-                                                       		#print([x['text'] for
-            		#x
-                                                                   		#in
-                                                                   		#words
-                                                                   		#if
-                                                                   		#x['frequency']
-                                                                   		#>
-                                                                                                                                                                     		#2])
+		words, lines, articles = reader.parseDocPages(4,2190)#19, 400) #1)
 
 		df = pd.DataFrame.from_dict(words)
 
-		cat_features = ['size', 'flags', 'font', #'otherSigns',
+		cat_features = ['size', 'flags', 'font', #'color', #'otherSigns',
 		'morph_pos', 'morph_animacy', 'morph_aspect', 'morph_case',
 		'morph_gender', 'morph_involvement', 'morph_mood',
 		'morph_number', 'morph_person', 'morph_tense',
@@ -624,106 +590,83 @@ def SimpleNN():
 			print(col)
 
 		df.head()
-
 		
-		# features = [c for c in df.columns if c not in featuresToRemove];
-
 		featuresToRemove = ['text', 'morph_normalform', 'morph_lexeme',
 							 'span_count', 'line_count', 'block_count',
 							 #'sentence_count',
-							 'page_num', 'article_num']
-
+							 'page_num', 
+							 'article_num', 
+							 'color']
+		#featuresToRemove = []
 		df = df.drop(featuresToRemove, axis=1)
 
 		# convert all columns of DataFrame
-		df = df.apply(pd.to_numeric)
+		#df = df.apply(pd.to_numeric)
 
 		print("df.dtypes")
 		print(df.dtypes)
 
-		target = df.pop('is_keyword')
-		dataset = tf.data.Dataset.from_tensor_slices((df.values, target.values))
+		df.to_csv('all_words_features.csv', index=False)
+		
+		numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+		newdf = df.select_dtypes(include=numerics)
+		
+		print("newdf.columns")
+		print(newdf.columns)
 
-		#for feat, targ in dataset.take(5):
-			#print ('Features: {}, Target: {}'.format(feat, targ))
+		#df_y = newdf.pop('is_stopword')
 
-		train_dataset = dataset.shuffle(len(df)).batch(1)
+		keywords = newdf[newdf['is_keyword']==1]
+		print('len of keywords')
+		print(keywords.shape)
 
-		model = get_compiled_model()
-		#model.fit(train_dataset, epochs=15)
-		model.fit(np.array(df.values),np.array(target.values), epochs=1500, batch_size=10)
-		print('fine')
+		keywords.to_csv('all_keywords_features.csv', index=False)
 
-		#for feature in features:
-		#	x = np.array([w[feature] for w in words])
-		#	unique, counts = np.unique(x, return_counts=True)
 
-		#	if (feature == 'morph_pos'):
-		#		possible_options = ['NOUN', 'ADJF','ADJS','COMP','VERB',
-		#				'INFN','PRTF','PRTS','GRND','NUMR','ADVB','NPRO',
-		#				'PRED','PREP','CONJ','PRCL','INTJ']
+		try:
+			notkeywords = newdf[newdf['is_keyword']==0].sample(n = len(keywords), replace = False) 
+		except ValueError:
+			notkeywords = newdf[newdf['is_keyword']==0].sample(n = len(keywords), replace = True) 
+		print('len of notkeywords')
+		print(notkeywords.shape)
 
-		#		data_to_add = []
-		#		for _x in x:
-		#			data_to_add.append([1 if v == _x else 0 for v in possible_options ])
+		notkeywords.to_csv('all_notkeywords_features.csv', index=False)
 
-		#		all_data = append_fields(all_data,
-		#					 possible_options,
-		#					data_to_add,
-		#					usemask=False)
+		newdf = pd.concat([notkeywords, keywords])
+		newdf = newdf.sample(frac=1)
 
-		#	print(feature)
-		#	print(len(counts))
-		#	print("--=--")
+		df_Y = newdf.pop('is_keyword')
+		Y = df_Y.values
+		X = newdf.values.astype(float)
+		print('X.shape')
+		print(X.shape)
 
-		#x = words[0]
 
-		#print(x['size'],
-		#x['flags'],
-		#x['font'],
-		#x['color'],
-		#x['otherSigns'],
-		#x['istitle'],
-		#x['isupper'],
-		#x['is_stopword'],
-		#x['text'],
-		#x['textrank_score'],
-		#x['frequency'],
-		#x['morph_score'],
-		#x['morph_pos'],
-		#x['morph_animacy'],
-		#x['morph_aspect'],
-		#x['morph_case'],
-		#x['morph_gender'],
-		#x['morph_involvement'],
-		#x['morph_mood'],
-		#x['morph_number'],
-		#x['morph_person'],
-		#x['morph_tense'],
-		#x['morph_transitivity'],
-		#x['morph_voice'],
-		#x['morph_isnormal'],
-		#x['morph_normalform'],
-		#x['morph_lexeme'],
-		#x['word_pos_in_sentence'])
+		# evaluate model with standardized dataset
+		estimator = KerasClassifier(build_fn=create_baseline, input_dim=len(newdf.columns), epochs=100, batch_size=5, verbose=0)
+		kfold = StratifiedKFold(n_splits=10, shuffle=True)
+		results = cross_val_score(estimator, X, Y, cv=kfold, scoring='f1')
+		print("Baseline: %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100)) 
+		#Baseline: 86.09% (4.30%)
+		#Baseline: 87.93% (1.14%)
+		#Baseline: 71.70% (3.28%)
+		#Baseline: 74.48% (1.10%) а1
+		print('bye-bye')
 
-		#X = []
-		#for x in words:
-		#	X.append([x['size'], x['flags'],x['font'], x['color'], x['otherSigns'],
-		#	x['istitle'],
-		#			  x['isupper'], x['is_stopword'],
-		#x['text'], x['textrank_score'],
-		#x['frequency'],
-		#x['morph_score'], x['morph_pos'],
-		#x['morph_animacy'], x['morph_aspect'],
-		#x['morph_case'], x['morph_gender'],
-		#x['morph_involvement'], x['morph_mood'],
-		#x['morph_number'], x['morph_person'],
-		#x['morph_tense'], x['morph_transitivity'],
-		#x['morph_voice'], x['morph_isnormal'],
-		#x['morph_normalform'], x['morph_lexeme'],
-		#x['word_pos_in_sentence']])
-		#print(X[0:2])
+# baseline model
+def create_baseline(input_dim=None):
+	# create model
+	model = Sequential()
+	model.add(Dense(input_dim, input_dim=input_dim, activation='relu'))
+	model.add(Dense(1, activation='sigmoid'))
+	# Compile model
+	model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+	return model
+
+SimpleNN();
+
+
+
 def get_compiled_model():
 	model = tf.keras.Sequential([tf.keras.layers.Dense(71, input_shape=(71,), activation='relu'),
 	tf.keras.layers.Dense(71, activation='relu'),
@@ -890,7 +833,7 @@ def test_ru_graph_keys_words_numbers():
 	plt.show()
 
 
-test_ru_graph_keys_words_numbers()
+#test_ru_graph_keys_words_numbers()
 
 
 def test_posstager():
